@@ -59,6 +59,7 @@ public override void Load() {
 | Own models, pictures, fast cached loading | [Models, pictures and caches](assets.md) | `Tools.Meshes`, `Tools.Sprites`, `Tools.TextureCache` ... |
 | Let players switch your mod on and off in game | [Mod switch](mod-switch.md) | `Core.Mods.Switch` |
 | React to keys the player can rebind in Settings > Input | [Hotkeys](hotkeys.md) | `Core.Hotkeys` |
+| Show your texts in the player's language, translate rules and hotkeys, fix the game's texts | [Texts](texts.md) | `Core.Texts` |
 | Patch game methods by name, reflection, raw memory | [Tools](tools.md) | `Tools.Patcher`, `Tools.Reflect`, `Tools.Mem` |
 
 ## Game fixes

@@ -139,3 +139,15 @@ Core.Civilizations.RefreshLooks();                                              
 Core.Civilizations.Reskin(2).Building(GameBuildingTypeName.CASTLE, null);               // null: the game's own model again
 Core.Civilizations.RefreshLooks(Core.Players.Local);                                   // only your island
 ```
+
+### Switching looks on and off
+
+`CivilizationSkins.Enabled` turns a civilization's (or reskin's) models and island colours off and on at any time; while off the game gets its own look. `Civilizations.AddLooksSwitch(Config, skins)` binds an on/off setting in the mod's own config file (ConfigMenu shows it) that sets `Enabled` and calls `RefreshLooks()`, so the switch works live, also during a match. Reskins of the same built-in civilization share one `CivilizationSkins` and therefore switch together.
+
+```csharp
+var skins = Core.Civilizations.Reskin(2);                          // the built-in civilization 2
+var looks = Core.Civilizations.AddLooksSwitch(Config, skins);      // [Looks] Enabled = true in your config file
+
+skins.Enabled = false;                     // or by hand: the game's own look ...
+Core.Civilizations.RefreshLooks();         // ... on every island right away
+```

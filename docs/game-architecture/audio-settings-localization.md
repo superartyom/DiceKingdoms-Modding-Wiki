@@ -163,6 +163,56 @@ public class SettingSets : MonoBehaviour
 For a mod's own settings a BepInEx config file is easiest. To use Steam Cloud like the game: `SettingSets.Store(true, "GameSettings/mymod.json", bytes)` / `SettingSets.Get(true, ...)`.
 How the settings window is built: [Interface behaviour](interface.md#settings-widgets).
 
+### Saving when the window closes
+
+The settings window:
+
+<!-- code: SettingSetsInterface | *fields, OnEnable, OnDisable -->
+```csharp
+namespace DiceKingdoms.Meta;
+
+public class SettingSetsInterface : ToggleableWindow
+{
+    private SettingSetInterface video;       // 0x18
+    private SettingSetInterface audio;       // 0x20
+    private SettingSetInterface input;       // 0x28
+    private SettingSetInterface game;        // 0x30
+    private BaseButton closeButton;          // 0x38
+    private Action onClose;                  // 0x40
+    public InputActionAsset actionsAssets;   // 0x48
+
+    protected void OnEnable();               // RVA 0x54EFD0
+    protected void OnDisable();              // RVA 0x54EEA0
+}
+```
+<!-- /code -->
+
+What the two do:
+
+```c#
+protected void OnEnable()
+{
+    actionsAssets.Disable();
+}
+
+protected void OnDisable()
+{
+    actionsAssets.Enable();
+    var sets = SettingSets.instance;
+    foreach (SettingSet set in sets.settingSets)
+    {
+        bool remote = set.remote && SteamClient.IsValid;
+        SettingSets.Store(remote, sets.Path(set), set.Export());
+    }
+}
+```
+
+**Logic.** Opening the window switches the game's input actions off, so keys pressed in the key boxes do nothing in the game; closing switches them back on and writes every
+set. There is no Save button: closing the window is the save. Nothing is checked for null, so a missing `actionsAssets`, `SettingSets.instance` or a null entry in `settingSets`
+stops the method with a NullReferenceException, and the sets after that point are not written.
+
+**Patch:** a setting changed from code is not written until the window closes; call `SettingSets.instance.Save()` (`0x54FA30`) to write it at once.
+
 ## Tutorial ("Training")
 
 Main menu → Training → `MainMenu.LoadTraining`: writes `.did-tutorial` to Steam Cloud **as soon as it starts** (the "recommend tutorial" hint is hidden from then on), adds **two Passive
@@ -213,8 +263,166 @@ So a German Steam client starts in English, and a Ukrainian one in Russian altho
 **Language setting** (`GameSettings.language`, Steam Cloud): 0 Steam default (selectors run again), 1 English, 2 French, 3 Chinese (simplified), 4 Russian, 5 German. There is **no Ukrainian**
 entry; only a mod can select it (`LocalizationSettings.SelectedLocale`).
 
+The setting and its values:
+
+<!-- code: GameSettings | *fields -->
+```csharp
+namespace DiceKingdoms.Meta;
+
+public class GameSettings : SettingSet
+{
+    public SettingSet.Setting<GameSettings.Language> language;   // 0x28
+
+    public enum Language
+    {
+        STEAM_DEFAULT = 0,
+        ENGLISH = 1,
+        FRENCH = 2,
+        CHINESE_SIMPLIFIED = 3,
+        RUSSIAN = 4,
+        GERMAN = 5,
+    }
+}
+```
+<!-- /code -->
+
+What happens when it changes (`GameSettings.<>c.<.ctor>b__2_0`, `0x5597A0`, the action the constructor gives the setting):
+
+```c#
+static void OnLanguage(GameSettings.Language value)
+{
+    if (value == GameSettings.Language.STEAM_DEFAULT)
+    {
+        LocalizationSettings.Instance.ResetState();   // the startup selectors run again
+        return;
+    }
+    SystemLanguage system = value switch
+    {
+        GameSettings.Language.ENGLISH            => SystemLanguage.English,   // 10
+        GameSettings.Language.FRENCH             => SystemLanguage.French,    // 14
+        GameSettings.Language.CHINESE_SIMPLIFIED => SystemLanguage.Chinese,   // 6
+        GameSettings.Language.RUSSIAN            => SystemLanguage.Russian,   // 30
+        GameSettings.Language.GERMAN             => SystemLanguage.German,    // 15
+        _ => throw new ArgumentOutOfRangeException("value", value, null),
+    };
+    LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.GetLocale(system);
+}
+```
+
+**Logic.** Every value maps to a `SystemLanguage`, and the locale for it becomes the selected one; any value above 5 throws. The menu (`SettingInterfaceEnumLanguage`, a
+`SettingInterfaceEnum<GameSettings.Language>`) fills its drop-down from the enum through `Interface.Dropdown.SetEntries` (`0x58B4C0`): the entries are
+`(StructuredText, object)` value tuples with the boxed enum value as the object, and picking one sets the setting to that value.
+
+**Patch:** a sixth language needs both a drop-down entry and a prefix on this handler for the new value. Add the entry by changing the drop-down after `SetEntries` has run
+(a postfix) rather than by building new value tuples: creating generic structs from the interop side is unreliable and can crash the game without a log line.
+
 Texts are `StructuredText` with `ITextElement.Localized(key, args)`: the translation can contain the same icon tokens and `{a.N}` argument slots (see
 [Interface behaviour](interface.md#text-structuredtext)). Rendered text is cached per locale and labels redraw when the language changes.
 
-For mods: add entries to the string table at runtime (`LocalizationSettings.StringDatabase.GetTable(...)` → `AddEntry`) for the language in use (and again when it changes), or write your own
-`StructuredText`; icon tokens work without localization. The startup quirks can be fixed with a postfix on `SteamLocaleSelector.GetStartupLocale`.
+### How a text is drawn
+
+The references the texts use:
+
+<!-- code: StructuredTextStaticReferences | *fields, LocalizeString -->
+```csharp
+namespace DiceKingdoms.Interface;
+
+public class StructuredTextStaticReferences : MonoBehaviour
+{
+    private BuildingTypes buildingTypes;                 // 0x18
+    private SkinRegistry skinRegistry;                   // 0x20
+    private PlayerColors playerColors;                   // 0x28
+    private Disasters disasters;                         // 0x30
+    private LocalizationSettings localizationSettings;   // 0x38
+    private TableReference localizationStringTable;      // 0x40
+    public static StructuredTextStaticReferences instance;
+
+    public string LocalizeString(string key);            // RVA 0x5953B0
+}
+```
+<!-- /code -->
+
+A localized part of a text:
+
+<!-- code: ITextElement.Localized | *fields, get_Render -->
+```csharp
+namespace DiceKingdoms.Interface;
+
+public struct ITextElement.Localized : ITextElement
+{
+    public string key;                 // 0x0
+    public ITextElement[] arguments;   // 0x8
+
+    public string get_Render();        // RVA 0x58FE00
+}
+```
+<!-- /code -->
+
+`Localized` is a **struct**. Its `Render`:
+
+```c#
+public string get_Render()
+{
+    var refs = StructuredTextStaticReferences.instance;
+    string text = refs.localizationSettings.GetStringDatabase()
+                      .GetLocalizedString(refs.localizationStringTable, key);
+    var builder = new StructuredText.Builder();
+    builder.Add($"{text}", arguments);
+    return builder.Build().Render();
+}
+```
+
+**Logic.** Every text is in one string table (`localizationStringTable`), looked up in the selected language. The translation is not used as it is: it becomes the only part of
+a `"{0}"` format and is read again as a `StructuredText` with the element's `arguments`, which turns icon tokens (`{r.food}`) and argument slots (`{a.0}`) into the final text.
+`LocalizeString(key)` is the same lookup without that last step.
+
+**Patch:** a prefix on `Localized.get_Render` that returns its own text must do the same `Builder` step, or the tokens in it stay raw.
+
+### Texts placed in the scene
+
+Not every text goes through `Localized`. Many fixed texts in the menus are TextMeshPro objects with Unity's `GameObjectLocalizer` (Localization property variants) next to a
+`Label`: the localizer writes the table's text straight into the TMP `text` field when the object is enabled and when the language changes. 131 objects work this way, among them:
+
+| Where | Texts |
+|---|---|
+| Rules window, in the main menu and in the match | the title, the six tab buttons and every page |
+| Lobby (`StartGame`) | the player slots, Start Game, Invite Friends, AI |
+| Main menu | the left buttons (Training, Rule Book, Quick Match, Single Player, Custom Game, Daily Reward), the Custom Game panel |
+| Settings | the tab titles and the Close button |
+| Others | the store's confirm dialog, the phase banners, the combat plan, the win conditions on the scoreboard |
+
+These texts never pass through `Localized.get_Render`, so a hook there does not change them: change the table entry instead (below).
+
+### When the language can be read
+
+Unity's `LocalizationSettings.SelectedLocale` is only ready once Unity's localization has finished starting. Reading it before that makes Unity wait for that start on the main
+thread (`WaitForCompletion`). From code that runs inside the game's own loading step (while the game data is loaded at start) the wait does not end: the game stops responding
+on a black screen before the intro. The same goes for anything that looks a text up (`Localized.Render`, `GetTable`).
+
+Read the language after that step has returned (one frame later, or once the main menu is up), and follow changes with `LocalizationSettings.SelectedLocaleChanged`.
+
+### The Ukrainian table
+
+The game ships a Ukrainian locale (`uk`) and its table, but the language is not finished:
+
+- 415 entries, of which 308 are the English text copied in and 15 the Russian text;
+- the key `settings.values.Language.UKRAINIAN` exists, the `GameSettings.Language` enum has no value for it;
+- a Ukrainian Steam client starts in Russian (see the startup selectors above).
+
+It can be selected from code: `LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.GetLocale("uk")`.
+
+### Changing a text
+
+```c#
+var refs = StructuredTextStaticReferences.instance;
+StringTable table = LocalizationSettings.StringDatabase.GetTable(refs.localizationStringTable, LocalizationSettings.SelectedLocale);
+StringTableEntry entry = table.GetEntry("rules.title");
+if (entry != null) entry.Value = "Rules";
+else table.AddEntry("my.key", "My text");
+```
+
+**Logic.** Both routes read this table, so a changed entry shows in `Localized` texts and in the scene texts. A table belongs to one locale and is loaded when that locale is
+selected, so do it again after every language change, and never inside the loading step (see above). Texts already on screen keep their old text until they are drawn again:
+a `StructuredText` caches its render per locale, and a `GameObjectLocalizer` applies when its object is enabled. A window opened afterwards shows the new text.
+
+Own texts can also be written as a `StructuredText`; icon tokens work without localization. The startup quirks can be fixed with a postfix on `SteamLocaleSelector.GetStartupLocale`.
