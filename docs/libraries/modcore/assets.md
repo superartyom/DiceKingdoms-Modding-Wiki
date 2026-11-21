@@ -21,12 +21,19 @@ Mesh quad  = Meshes.Create("quad", vertices, uvs, triangles);
 Mesh none  = Meshes.Empty;                                                         // blank out a part of a model
 ```
 
-A model embedded in your DLL is read from a stream; with your mod's version it is cached like a file:
+A model embedded in your DLL is read from a stream; with a version it is cached like a file:
 
 ```csharp
 var asm = typeof(MyModPlugin).Assembly;
-Mesh tower = Meshes.LoadDkmesh("tower", () => asm.GetManifestResourceStream("MyMod.models.tower.dkmesh"), "1.0.0", out var f, out var y);
+byte[] bytes;
+using (var s = asm.GetManifestResourceStream("MyMod.models.tower.dkmesh"))
+using (var m = new MemoryStream()) { s.CopyTo(m); bytes = m.ToArray(); }
+string version = MyModPlugin.Version + "+" + Convert.ToHexString(SHA1.HashData(bytes)).Substring(0, 12);
+Mesh tower = Meshes.LoadDkmesh("tower", () => new MemoryStream(bytes), version, out var f, out var y);
 ```
+
+The cache is used for as long as the version stays the same. With only your mod's version, a model you change without raising the version is never read again
+(the game keeps showing the old one), so let the version change with the model, as above with a hash of its bytes.
 
 ## Sprites and prefab copies
 

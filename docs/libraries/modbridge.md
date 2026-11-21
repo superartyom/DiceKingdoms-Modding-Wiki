@@ -9,6 +9,9 @@ mod author to call. Source and releases: [DiceKingdoms-ModBridge](https://github
 
 - **Lobby rules**: every rule registered with `Core.Lobby.Rules` gets a row in the Settings box of the lobby screen, grouped per mod. The host edits it before the match, everybody
   else sees the host's value read-only. Rows follow the lobby live (a member joins, the host changes a value, the match starts and rows turn read-only).
+  Rules under a heading ([rule groups](modcore/lobby.md#rule-groups-per-civilization)) keep the list short: the heading's first rule, when it is an on/off tick, is its switch
+  and gets a row in the list; its other rules get rows too when there is only one, and when there are two or more, a *&lt;heading&gt;: settings* row with an *Open* button
+  opens them in their own window (ticks, drop-downs, numbers with - / + and *Default*, each with its description).
 - **Compatibility warnings**: `Core.Lobby.Compatibility.Warnings` are listed under the rules.
 - **Civilizations**: every civilization added with `Core.Civilizations.Add` gets an entry in the Rules drop-down.
 - **Mod keys**: every key added with `Core.Hotkeys.Add` ([Hotkeys](modcore/hotkeys.md)) gets a row in Settings > Input, one heading per mod. The button shows the key; click it and press the new key (Escape cancels). *Default* puts the mod's own key back.
@@ -26,6 +29,18 @@ public class MyModPlugin : BasePlugin {
     }
 }
 ```
+
+A mod with a switch and a few settings puts them under its own heading, the switch first. The list then shows one tick and one *Open* row, and the settings stay in
+their window:
+
+```csharp
+var tolls = Core.Lobby.Groups.Get("author.tolls", "Tolls");
+var on    = Core.Lobby.Rules.Toggle("author.tolls.on", "Tolls", false, description: "Bridges cost gold to cross.").InGroup(tolls);   // the tick in the list
+Core.Lobby.Rules.Number("author.tolls.price", "Price", 2, 1, 10, 1, visible: () => on.Live).InGroup(tolls);                           // in the window
+Core.Lobby.Rules.Number("author.tolls.free", "Free crossings", 1, 0, 5, 1, visible: () => on.Live).InGroup(tolls);                    // in the window
+```
+
+The *Open* row is shown only while one of the window's rules is visible, so here it appears when the host ticks *Tolls*.
 
 Mods that use ModCore do not depend on ModBridge: without it their rules still work (with their defaults, or the host's value set by another tool); there are just no rows.
 List it as an optional dependency, or required if your mod is useless without the screens.

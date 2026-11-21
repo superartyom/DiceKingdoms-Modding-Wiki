@@ -77,6 +77,9 @@ foreach (LobbyGroup g in Core.Lobby.Groups.All) {          // sorted: built-in c
 Core.Lobby.Groups.Changed += RebuildList;
 ```
 
+Register a group's on/off switch first: [ModBridge](../modbridge.md) shows a heading's first rule, when it is a tick, as that heading's switch in the list, and two or
+more other rules in the heading's own window.
+
 ## Version and compatibility check
 
 Every player publishes the rules and civilizations he has, each with its mod's version. A gameplay change (a rule, a tech tree, unit or building values, a civilization) is

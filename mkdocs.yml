@@ -45,6 +45,7 @@ nav:
       - Match and Players: libraries/modcore/match-and-players.md
       - Civilizations: libraries/modcore/civilizations.md
       - Gameplay Values: libraries/modcore/gameplay-values.md
+      - Build Actions: libraries/modcore/build-actions.md
       - Models, Pictures and Caches: libraries/modcore/assets.md
       - Mod Switch: libraries/modcore/mod-switch.md
       - Hotkeys: libraries/modcore/hotkeys.md
