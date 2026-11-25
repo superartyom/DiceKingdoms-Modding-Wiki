@@ -90,6 +90,25 @@ Core.Civilizations.WhenGameDataLoaded(() => {
 var view = new IconView { Pitch = 30f, Yaw = 45f, Padding = 0.1f };            // your own angle
 ```
 
+A rendered sprite is named `<name> <colour index>`. When it becomes a building's icon, the game also writes that name into texts (the build bar's tooltip, the game
+log), so add the sprites to the text pictures too, each copying the size of the icon it replaces. Otherwise the text shows the raw `<sprite name="...">` tag.
+
+```csharp
+var oldIcons = myVisual.icons;   // the icons of the building your model was copied from
+IconRenderer.PlayerColours("author.my-building", myVisual.gameObject, IconView.Building, 256, 256,
+    sprites => {
+        myVisual.icons = new Il2CppReferenceArray<Sprite>(sprites);
+        var entries = new List<TextSprites.Entry>();
+        for (int i = 0; i < sprites.Length; i++) {
+            var s = sprites[i];
+            string like = oldIcons[Math.Min(i, oldIcons.Length - 1)].name;   // size from the old icon
+            entries.Add(new TextSprites.Entry(s.name, like, () => Sprites.ReadableCopy(s)));
+        }
+        string key = IconRenderer.CacheKey("author.my-building");
+        TextSprites.AddLike("author.my-building Text", entries, key);
+    });
+```
+
 Set `[Debug] SaveIconPictures = true` in ModCore's config to get every rendered sheet as a PNG in `BepInEx\cache\ModCore\icon-pictures`.
 
 ## Disk cache

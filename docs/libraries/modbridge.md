@@ -42,6 +42,22 @@ Core.Lobby.Rules.Number("author.tolls.free", "Free crossings", 1, 0, 5, 1, visib
 
 The *Open* row is shown only while one of the window's rules is visible, so here it appears when the host ticks *Tolls*.
 
+A heading whose first rule is not a tick has no switch, and a mod with its own settings window can keep its rules out of the list:
+
+```csharp
+// no tick first: the list shows one "Building limits: settings" row, the numbers are in the window
+var limits = Core.Lobby.Groups.Get("author.limits", "Building limits");
+Core.Lobby.Rules.Number("author.limits.FARM", "Farm", 0, 0, 50, 1).InGroup(limits);
+Core.Lobby.Rules.Number("author.limits.HOUSE", "House", 0, 0, 50, 1).InGroup(limits);
+
+// no row in the list: the mod's own window edits it
+var wheel = Core.Lobby.Rules.Toggle("author.wheel.on", "Wheel", false, visible: () => false);
+window.Body.Toggle(wheel.Title, wheel.Live, v => wheel.TrySet(v));
+```
+
+A rule with `visible: () => false` still works and is sent to everybody; only its row is gone. In your own window only the host's `TrySet` is accepted, so show the
+others the host's `Live` value read-only and update it on the rule's `Changed`.
+
 Mods that use ModCore do not depend on ModBridge: without it their rules still work (with their defaults, or the host's value set by another tool); there are just no rows.
 List it as an optional dependency, or required if your mod is useless without the screens.
 

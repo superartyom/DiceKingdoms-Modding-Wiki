@@ -57,6 +57,7 @@ public override void Load() {
 | Add a civilization, rename texts, reskin a built-in one, give AI build orders | [Civilizations](civilizations.md) | `Core.Civilizations` |
 | Change unit, building and technology values safely | [Gameplay values](gameplay-values.md) | `Core.Units`, `Core.Balance` |
 | Your own build-phase action (an offering, a bet), applied on every computer | [Build actions](build-actions.md) | `Core.BuildActions` |
+| Limit how many buildings of one kind an island may have | [Building limits](building-limits.md) | `Core.Buildings` |
 | Own models, pictures, fast cached loading | [Models, pictures and caches](assets.md) | `Tools.Meshes`, `Tools.Sprites`, `Tools.TextureCache` ... |
 | Let players switch your mod on and off in game | [Mod switch](mod-switch.md) | `Core.Mods.Switch` |
 | React to keys the player can rebind in Settings > Input | [Hotkeys](hotkeys.md) | `Core.Hotkeys` |

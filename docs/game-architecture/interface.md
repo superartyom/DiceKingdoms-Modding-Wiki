@@ -133,6 +133,43 @@ public struct CameraMovement.Focus
   building is on your island. Nothing filters the Castle ([Build phase](build-phase.md#burning-the-castle)).
 - `TilePointer` = the tile under the mouse (island, position, orientation, mirroring, footprint preview).
 
+### Build bar buttons
+
+The building buttons are drawn by two functions:
+
+<!-- code: BuildInterface | RefreshButtons, RefreshBuildingButtons, TooltipText, OnPlace, Update -->
+```csharp
+namespace DiceKingdoms.Interface;
+
+public class BuildInterface : PhaseInterface<BuildData, BuildIslandState>
+{
+    private InputActionReference keepPlacingAction;        // 0xF0 (Shift)
+    private BuildingType[] buildableBuildingTypes;         // 0x108
+    private BuildingButton[] buildingButtons;              // 0x110 (same order)
+
+    protected void Update();                                       // RVA 0x5BBC50
+    private StructuredText TooltipText(BuildingType buildingType); // RVA 0x5B9CE0
+    private void RefreshBuildingButtons();                         // RVA 0x5B87C0
+    public void RefreshButtons();                                  // RVA 0x5B8B40
+    public void OnPlace(Building building);                        // RVA 0x5B8180
+}
+```
+<!-- /code -->
+
+- `RefreshButtons` keeps the stored resources and the number of learnt technologies (for `Update`'s check), then calls `RefreshBuildingButtons` and sets the clean-tile,
+  research, repair and burn buttons. It also runs after a building is placed (`OnPlace`).
+- `RefreshBuildingButtons`, for every `buildableBuildingTypes[i]` as `UpgradedBuildingType` (the Guard Tower button becomes the upgraded one):
+  `buildingButtons[i].button.Interactable = CanAfford(type) && Unlocked(type) && !DemoLocked(type) && turnPhase.State == 0`, then the icon (the building's icon in the
+  local player's colour), the demo and research locks, and the tooltip (`HasToolTip.text = TooltipText(type)`). At the end it refreshes the market's buttons.
+- `TooltipText` is called only from there. When `CanAfford` is false it lists the missing resources.
+- `BuildData.CanAfford` is called only by `RefreshBuildingButtons`, `TooltipText` and `OnPlace`: with Shift held (`keepPlacingAction`) the placer keeps the building type
+  only while `CanAfford` is still true, else it is cleared and the bar refreshed.
+- `Update` sets only the repair and burn buttons' `Interactable`, so the building buttons keep what `RefreshBuildingButtons` set. While walls are dragged it sets
+  `buildingBulkPlacer.canAfford = CanAffordBulk(type, CurrentBulkSize)` every frame (red when false).
+
+**Patch:** to grey out a building button, postfix `RefreshBuildingButtons` and set `buildingButtons[i].button.Interactable = false`. Making `CanAfford` false instead also
+greys it, but adds missing resources to its tooltip. What may really be built is decided by `CanBuildType` when the action is applied ([Build phase](build-phase.md#checks-and-effects)).
+
 ## Mouse cursor
 
 - `Utility.UI.CursorVariation` (ScriptableObject): `texture` + `hotSpot`; `Use()` = `Cursor.SetCursor` (hardware cursor).
