@@ -98,6 +98,14 @@ string unit = Core.Texts.Game("unit.ARCHER.name", "Archer");
 
 Use it for unit, building, technology and civilization names in your screens instead of writing your own translations.
 
+While the game is still loading it returns the fallback: reading the game's localization then can make the game wait for itself and hang. Once the texts
+can be read, `LanguageChanged` follows, so names you read early (in `GameDataLoaded`, for example) can be read again there:
+
+```csharp
+Core.Civilizations.GameDataLoaded += ReadNames;   // may still get the fallbacks
+Core.Texts.LanguageChanged += ReadNames;          // the game's names, in the player's language
+```
+
 ## Fixing the game's texts
 
 Two kinds of keys change texts of the game itself:

@@ -16,9 +16,12 @@ public override void Load() {
 
 | Parameter | Meaning |
 |---|---|
-| `affectsSimulation: true` | A change made during a match waits until the match ends, so a match never changes halfway |
+| `affectsSimulation: true` | A change made during a match (from the islands spawning) waits for the match end |
 | `restartNeeded: true` | The value is read at start only (for mods that cannot undo their patches) |
 | `description` | Text shown for the config entry |
+
+A mod that changes the game (a lobby rule, a building, upkeep, anything every computer must do the same way) needs `affectsSimulation: true`. Without it,
+one player switching the mod off during a match changes the game only on that player's computer, and the computers disagree from then on.
 
 While a mod is switched off:
 

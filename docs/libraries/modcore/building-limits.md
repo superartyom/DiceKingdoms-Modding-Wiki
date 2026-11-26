@@ -10,14 +10,20 @@ building. An upgraded building (the upgraded Guard Tower) counts with its base b
 
 ## Suggest a limit for your building
 
-Call it in your plugin's `Load()`. From then on an island can have at most that many, whether or not a lobby mod is installed.
+Call it in your plugin's `Load()`, for a building your mod adds. From then on an island can have at most that many, whether or not a lobby mod is
+installed.
 
 ```csharp
 public override void Load() {
+    var rule = Core.Lobby.Rules.Toggle("author.forge.on", "Forge", false);   // turns your building on
     MyBuilding.Install();
-    Core.Buildings.SuggestLimit(MyBuilding.Name, 1);   // one per island; 0 = no limit
+    Core.Buildings.SuggestLimit(MyBuilding.Name, 1, rule);   // 1 per island while on
 }
 ```
+
+With the rule, the limit is used only while that rule is on for everybody (ModCore uses a rule only when every player has its mod), so every computer
+keeps to the same limit. Without one (`SuggestLimit(type, n)`) it always applies. Limit only your own buildings: a player without your mod would not keep to
+a limit on one of the game's buildings, and the computers would disagree.
 
 The building at its limit is greyed out in the build bar and its tooltip says how many the island has of how many it may have. A lobby mod that lets the host
 change the limits ([below](#let-the-host-change-the-limits)) reads the suggestion with `Core.Buildings.SuggestedLimit(type)` and uses it as the default of its number.
